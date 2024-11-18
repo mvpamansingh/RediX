@@ -1,8 +1,6 @@
-import java.io.IOException;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.io.OutputStream;
-
 
 public class Main {
   public static void main(String[] args){
@@ -21,9 +19,23 @@ public class Main {
           // Wait for connection from client.
           clientSocket = serverSocket.accept();
 
-            OutputStream clientOutputStream= clientSocket.getOutputStream();
+          // Creates an intance of outputstream on a client (socket / file) and use to write data on it
 
-            clientOutputStream.write("+PONG\r\n".getBytes());
+            OutputStream clientOutputStream= clientSocket.getOutputStream();
+            InputStream inputStream = clientSocket.getInputStream();
+
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                // Check if the command is PING (case-insensitive)
+                if (line.equalsIgnoreCase("PING")) {
+                    clientOutputStream.write("+PONG\r\n".getBytes());
+                    clientOutputStream.flush();
+                }
+            }
+
         } catch (IOException e) {
           System.out.println("IOException: " + e.getMessage());
         } finally {
