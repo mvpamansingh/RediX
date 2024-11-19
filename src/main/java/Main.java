@@ -65,7 +65,7 @@ class ClientHandler implements Runnable {
                 // Handle RESP protocol format
                 if (line.startsWith("*")) {  // Array length
                     int arrayLength = Integer.parseInt(line.substring(1));
-                    String command = null;
+                    String command = null, content= null;
 
                     // Read the command
                     for (int i = 0; i < arrayLength; i++) {
@@ -74,11 +74,19 @@ class ClientHandler implements Runnable {
                         if (i == 0) {
                             command = part.toUpperCase();
                         }
+                        else if(i == arrayLength - 1) {
+                            content = part;
+                        }
                     }
 
                     // Handle commands
                     if ("PING".equals(command)) {
                         clientOutputStream.write("+PONG\r\n".getBytes());
+                        clientOutputStream.flush();
+                    }
+                    else if("ECHO".equals(command)) {
+                        String output  = "$" + content.length() + "\r\n" +content+ "\r\n";
+                        clientOutputStream.write(output.getBytes());
                         clientOutputStream.flush();
                     }
                 }
