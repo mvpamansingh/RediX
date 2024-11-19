@@ -9,39 +9,33 @@ public class Main {
 
 
         ServerSocket serverSocket = null;
-        Socket clientSocket = null;
         int port = 6379;
         try {
           serverSocket = new ServerSocket(port);
           // Since the tester restarts your program quite often, setting SO_REUSEADDR
           // ensures that we don't run into 'Address already in use' errors
           serverSocket.setReuseAddress(true);
-          // Wait for connection from client.
-          clientSocket = serverSocket.accept();
 
-          // Creates an intance of outputstream on a client (socket / file) and use to write data on it
+         // clientSocket = serverSocket.accept();
 
-            OutputStream clientOutputStream= clientSocket.getOutputStream();
-            InputStream inputStream = clientSocket.getInputStream();
+            while(true) {
 
+                // Wait for connection from client.once client connected return object of conencted client
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("New client connected");
 
-            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-
-            String line;
-            while ((line = reader.readLine()) != null) {
-                // Check if the command is PING (case-insensitive)
-                if (line.equalsIgnoreCase("PING")) {
-                    clientOutputStream.write("+PONG\r\n".getBytes());
-                    clientOutputStream.flush();
-                }
+                // Create a new ClientHandler for each client and start it in a new thread
+                ClientHandler clientHandler = new ClientHandler(clientSocket);
+                new Thread(clientHandler).start();
             }
+
 
         } catch (IOException e) {
           System.out.println("IOException: " + e.getMessage());
         } finally {
           try {
-            if (clientSocket != null) {
-              clientSocket.close();
+            if (serverSocket != null) {
+             serverSocket.close();
             }
           } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
@@ -50,4 +44,53 @@ public class Main {
 
 
   }
+}
+
+class ClientHandler implements Runnable {
+    private final Socket clientSocket;
+
+    public ClientHandler(Socket socket) {
+        this.clientSocket = socket;
+    }
+
+    @Override
+    public void run() {
+        try {
+            OutputStream clientOutputStream = clientSocket.getOutputStream();
+            InputStream clientInputStream = clientSocket.getInputStream();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(clientInputStream));
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                // Handle RESP protocol format
+                if (line.startsWith("*")) {  // Array length
+                    int arrayLength = Integer.parseInt(line.substring(1));
+                    String command = null;
+
+                    // Read the command
+                    for (int i = 0; i < arrayLength; i++) {
+                        reader.readLine();  // Skip the $n line
+                        String part = reader.readLine();  // Read the actual content
+                        if (i == 0) {
+                            command = part.toUpperCase();
+                        }
+                    }
+
+                    // Handle commands
+                    if ("PING".equals(command)) {
+                        clientOutputStream.write("+PONG\r\n".getBytes());
+                        clientOutputStream.flush();
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("IOException: " + e.getMessage());
+        } finally {
+            try {
+                clientSocket.close();
+            } catch (IOException e) {
+                System.out.println("IOException: " + e.getMessage());
+            }
+        }
+    }
 }
